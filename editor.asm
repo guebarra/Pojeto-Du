@@ -1,54 +1,53 @@
 section .data
 
-	msg1	db	"Conteúdo salvo!",10
+	msg1	db	"Alterações salvas!",10
 	msg1_L	equ $-msg1
 
 	msg2	db	"Quantidade de palavras: "
 	msg2_L	equ $-msg2
 
-	msg3	db	"Deseja salvar? (s ou n): "
+	msg3	db	"Saindo sem salvar!",10
 	msg3_L	equ $-msg3
-
-	msg4	db	"Saindo sem salvar!",10
-	msg4_L	equ $-msg4
 
 	pulalinha	db	10
 
 section .bss
-	id_in		resb 4
-	tam			resb 4
 	arq 		resb 30
+	new_info	resb 1000
+	id_in		resb 4
 	id_out		resb 4
+
+	info 		resb 1000
+	tam			resb 4
+
 	aux 		resb 4
 	caract		resb 1
 	comando 	resb 5
-	opcao		resb 1
 	nro			resb 4
 	res 		resb 4
-	info 		resb 1000
-	new_info	resb 1000
 
 section .text
 	global	_start:
+
+;**MACRO PARA CHAMADAS DO SISTEMA**
+	%macro 	chamada 4
+		mov eax,%1
+		mov ebx,%2
+		mov ecx,%3
+		mov edx,%4
+		int 80h
+	%endmacro
 
 ;**EXIBIR CONTEÚDO DO ARQUIVO NA TELA**
 
 	exibeArquivo:
 		;le informação já contida no arquivo
-		mov eax,3
-		mov ebx,[id_in]
-		mov ecx,info
-		mov edx,1000
-		int 80h
+		chamada 3,[id_in],info,1000
 
 		mov [id_out],eax
 
 		;imprime informação contida no arquivo
-		mov eax,4
-		mov ebx,1
-		mov ecx,info
-		mov edx,[id_out]
-		int 80h
+		chamada 4,1,info,[id_out]
 
 		ret
 
@@ -74,17 +73,9 @@ section .text
 		mov [nro],al
 		push ebx
 
-		mov eax,4
-		mov ebx,1
-		mov ecx,msg2
-		mov edx,msg2_L
-		int 80h
+		chamada 4,1,msg2,msg2_L
 
-		mov eax,4
-		mov ebx,1
-		mov ecx,nro
-		mov edx,1
-		int 80h
+		chamada 4,1,nro,1
 
 		pop ebx
 		cmp ebx,0
@@ -118,12 +109,10 @@ section .text
 			mov eax,ecx
 			ret
 
+;**SALVAR NO ARQUIVO**
+
 	salva:
-		mov eax,4
-		mov ebx,[id_in]
-		mov ecx,new_info
-		mov edx,[tam]
-		int 80h
+		chamada 4,[id_in],new_info,[tam]
 
 		mov eax,0
 		mov edx,[id_out]
@@ -139,11 +128,7 @@ section .text
 		mov ecx,0
 		mov [tam],ecx
 
-		mov eax,4
-		mov ebx,1
-		mov ecx,msg1
-		mov edx,msg1_L
-		int 80h
+		chamada 4,1,msg1,msg1_L
 
 		ret
 
@@ -154,11 +139,7 @@ section .text
 		mov [tam],edx
 		.do:
 			;lendo do terminal
-			mov eax,3
-			mov ebx,0
-			mov ecx,caract
-			mov edx,1
-			int 80h
+			chamada 3,0,caract,1
 
 			;se é / ele pula para a subrotina de comando
 			cmp [caract],byte 47
@@ -173,19 +154,15 @@ section .text
 			jmp .do
 
 		.comando:
-			mov eax,3
-			mov ebx,0
-			mov ecx,comando
-			mov edx,5
-			int 80h
+			chamada 3,0,comando,5
 
-			cmp	[comando], dword "slvr"
+			cmp	[comando], dword "slvr"		;comando para salvar alterações
 			je	.salvar
 
-			cmp	[comando], dword "sair"
-			je	.sair
+			cmp	[comando], dword "sair"		;comando para sair sem salvar
+			je	.sair	
 
-			cmp	[comando], dword "cpal"
+			cmp	[comando], dword "cpal"		;comando para contar palavras
 			je	.palavras
 
 
@@ -194,27 +171,7 @@ section .text
 				jmp .do
 
 			.sair:
-
-				mov eax,4
-				mov ebx,1
-				mov ecx,msg3
-				mov edx,msg3_L
-				int 80h
-
-				mov eax,3
-				mov ebx,0
-				mov ecx,opcao
-				mov edx,5
-				int 80h
-
-				cmp	[opcao], dword "s"
-				je .salvar
-
-				mov eax,4
-				mov ebx,1
-				mov ecx,msg4
-				mov edx,msg4_L
-				int 80h
+				chamada 4,1,msg3,msg3_L
 
 				jmp encerrar
 
@@ -238,19 +195,13 @@ section .text
 ;**DEIXANDO ARQUIVO PRONTO PRA SER LIDO E ESCRITO**
 	;abrindo  arquivo
 	abreArquivo:
-		mov	eax,5
-		mov	ebx,arq
-		mov ecx,2
-		mov edx,0777q
-		int 80h
+		chamada 5,arq,2,0777q
 		
 		cmp eax,0
 		jl criaArquivo
 	
 		mov [id_in],eax
 		ret
-
-;**PEGANDO NOME DO ARQUIVO PELA PASSAGEM DE ARGUMENTOS**
 
 ;**ENCERRANDO PROGRAMA**
 
@@ -260,7 +211,6 @@ section .text
 		int 80h
 
 ;**ROTINA PRINCIPAL**
-
 	_start:
 
 		pegaArquivo:			;subrotina para pegar nome do arquivo
@@ -284,10 +234,6 @@ section .text
 
 			call	exibeArquivo	;exibe conteudo do arquivo (se houver)
 
-			call	lerNovoTexto		;le conteudo novo
+			call	lerNovoTexto	;le conteudo novo
 
-
-
-;			call	fechaArquivo	;fecha arquivo
-;			jmp .do
 			call encerrar
